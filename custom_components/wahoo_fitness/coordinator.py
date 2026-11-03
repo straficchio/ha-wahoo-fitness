@@ -10,6 +10,7 @@ from typing import Any, override
 
 from bleak import BleakClient
 from bleak.exc import BleakError
+from bleak_retry_connector import establish_connection
 from homeassistant.components.bluetooth import (
     BluetoothCallbackMatcher,
     BluetoothChange,
@@ -207,12 +208,14 @@ class WahooFitnessCoordinator(DataUpdateCoordinator[WahooData]):
             return
 
         _LOGGER.debug("Connecting to %s (%s)", self.name, self.address)
-        client = BleakClient(
+        client = await establish_connection(
+            BleakClient,
             device,
-            timeout=CONNECT_TIMEOUT,
+            self.address,
             disconnected_callback=self._async_disconnected,
+            max_attempts=1,
+            timeout=CONNECT_TIMEOUT,
         )
-        await client.connect()
         async with self._client_lock:
             self._client = client
         try:

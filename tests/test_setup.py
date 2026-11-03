@@ -50,7 +50,7 @@ class FakeBleakClient:
         self._disconnected_callback = kwargs.get("disconnected_callback")
         self.instances.append(self)
 
-    async def connect(self) -> None:
+    async def connect(self, **kwargs: Any) -> None:
         self.is_connected = True
 
     async def disconnect(self) -> None:
@@ -88,6 +88,12 @@ class FakeBleakClient:
             callback(FakeCharacteristic(uuid), bytearray(data))
 
 
+async def _fake_establish(client_class: Any, device: Any, name: str, **kwargs: Any) -> Any:
+    client = client_class(device, disconnected_callback=kwargs.get("disconnected_callback"))
+    await client.connect()
+    return client
+
+
 def _entry(model: str, name: str, address: str, unique_id: str) -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
@@ -105,6 +111,10 @@ async def _setup(hass, entry: MockConfigEntry) -> FakeBleakClient:
     FakeBleakClient.instances.clear()
     entry.add_to_hass(hass)
     with (
+        patch(
+            "custom_components.wahoo_fitness.coordinator.establish_connection",
+            new=_fake_establish,
+        ),
         patch(
             "custom_components.wahoo_fitness.coordinator.BleakClient",
             FakeBleakClient,
