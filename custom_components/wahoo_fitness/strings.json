@@ -1,0 +1,84 @@
+{
+  "config": {
+    "flow_title": "{name}",
+    "step": {
+      "user": {
+        "title": "Add a Wahoo Fitness device",
+        "description": "Select a discovered KICKR BIKE or HEADWIND.",
+        "data": {
+          "address": "Device"
+        }
+      },
+      "bluetooth_confirm": {
+        "title": "Add {name}?",
+        "description": "Do you want to add {model} at {address}?"
+      }
+    },
+    "abort": {
+      "already_configured": "This device is already configured.",
+      "device_not_found": "The selected device was not found.",
+      "no_devices_found": "No supported Wahoo Fitness devices were discovered. Make sure the device is awake and in Bluetooth range.",
+      "unsupported_device": "This Bluetooth device is not a supported Wahoo Fitness device."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "power": {
+        "name": "Power"
+      },
+      "cadence": {
+        "name": "Cadence"
+      },
+      "speed": {
+        "name": "Speed"
+      },
+      "distance": {
+        "name": "Session distance"
+      },
+      "front_gear": {
+        "name": "Front gear"
+      },
+      "rear_gear": {
+        "name": "Rear gear"
+      },
+      "front_gear_count": {
+        "name": "Front gear count"
+      },
+      "rear_gear_count": {
+        "name": "Rear gear count"
+      },
+      "training_status": {
+        "name": "Training status"
+      },
+      "mode": {
+        "name": "Mode"
+      }
+    },
+    "binary_sensor": {
+      "connected": {
+        "name": "Connected"
+      },
+      "pedaling": {
+        "name": "Pedaling"
+      }
+    },
+    "number": {
+      "target_power": {
+        "name": "Target power"
+      },
+      "grade": {
+        "name": "Grade"
+      }
+    },
+    "select": {
+      "control_mode": {
+        "name": "Control mode",
+        "state": {
+          "off": "Off",
+          "erg": "ERG",
+          "simulation": "Simulation"
+        }
+      }
+    }
+  }
+}

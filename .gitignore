@@ -1,0 +1,10 @@
+.venv/
+.venv-ha/
+apk/
+scripts/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.log
+.DS_Store
