@@ -48,7 +48,7 @@ Examples from the app's `CruxBtleCharacteristicType` enum:
 | | `0x2AD3` Training Status | notify |
 | Cycling Power `0x1818` | `0x2A63` Measurement | notify |
 | Wahoo `a026ee0d-…` | `0xE03A` gear state | notify |
-| | `0xE03C` shifter button | notify (not used) |
+| | `0xE03C` shifter button | notify (button events) |
 | Wahoo `a026ee0b-…` | `0xE037` advanced trainer CP | read/write/notify (not used) |
 
 ### FTMS control point
@@ -109,14 +109,49 @@ heart-rate fields. Session distance is therefore integrated from speed.
 Live example: `07 00 00 02 02 0c 00 00 00 00 00` → front index 0, rear index 2,
 2 chainrings, 12 sprockets. The integration adds 1 for display.
 
-### Shifter button (`0xE03C`) and bike control point (`0xE039`)
+### Shifter buttons (`0xE03C`)
 
-Both are handled inside Wahoo's native `libCruxAndroid.so`. The native functions
-`crux_codec_btle_kickr_bike_cp_client_encode_req` and
-`crux_codec_btle_kickr_bike_shifter_button_client_decode` exist, and the bike
-control point uses request types that encode shift/config operations. The exact
-command semantics are not documented, so this integration only subscribes to the
-gear state and does not send shift commands.
+Button presses are 3-byte notifications:
+
+```
+PP QQ RR
+```
+
+- `PP QQ` identifies the button (see table below).
+- `RR` bit 7 is 1 for press and 0 for release.
+- `RR` bits 0–6 are a rolling sequence number.
+
+The bike also sends a periodic 15-byte configuration frame starting with
+`FF 0F`; the integration ignores it. Button IDs (KICKR BIKE 1/2 layout):
+
+| ID | Button |
+| --- | --- |
+| `0200` | left up |
+| `0400` | left down |
+| `2000` | left steer |
+| `0001` | right up |
+| `8000` | right down |
+| `0008` | right steer |
+| `1000` | left shift up |
+| `0800` | left shift down |
+| `0004` | right shift up |
+| `0002` | right shift down |
+| `0100` | left brake |
+| `4000` | right brake |
+
+Example: `02 00 80` = left up pressed; `02 00 01` = left up released
+(sequence 1).
+
+The bike control point (`0xE039`) remains unused; shift commands are not sent.
+The head-unit button is handled locally by the bike and is not reported on this
+characteristic.
+
+### Bike control point (`0xE039`)
+
+Handled inside Wahoo's native `libCruxAndroid.so`. The native function
+`crux_codec_btle_kickr_bike_cp_client_encode_req` encodes configuration/shift
+operations, but the exact command semantics are not documented, so this
+integration does not send shift commands.
 
 ## HEADWIND
 
@@ -130,11 +165,17 @@ Service `a026ee0c-…`, characteristic `a026e038-…`
 
 | Purpose | Bytes |
 | --- | --- |
-| Enter manual mode | `04 04 00 00` |
+| Off | `04 01 00 00` |
+| Heart-rate mode | `04 02 00 00` |
+| Speed mode | `04 03 00 00` |
+| Manual mode | `04 04 00 00` |
 | Set speed 1–100 % | `02 <speed> 00 00` |
-| Turn off | `04 01 00 00` |
 
-All writes use write-without-response.
+All writes use write-without-response. Heart-rate and speed modes require a
+sensor paired to the fan in the Wahoo app. The fan also reports mode values 5+
+on newer firmware for power-zone/core-temp/run-pace/hybrid modes; those are not
+exposed by this integration because they were not present on the tested 1.0.3
+firmware.
 
 ### Notifications
 
@@ -142,7 +183,7 @@ All writes use write-without-response.
 | --- | --- |
 | `fd 01 <speed> 04` | manual mode, running at `<speed>` % |
 | `fd 01 00 01` | off |
-| `fd 01 00 03` | auto/standby, speed 0 |
+| `fd 01 00 03` | speed mode, speed 0 |
 | `fe 02 01 <speed>` | speed acknowledgement |
 | `fe 04 01 01` | off acknowledgement |
 

@@ -322,19 +322,71 @@ def ftms_simulation_parameters(
 
 
 # ---------------------------------------------------------------------------
+# KICKR BIKE shifter buttons
+# ---------------------------------------------------------------------------
+
+# 3-byte notifications: PP QQ = button id, RR bit 7 = pressed, bits 0-6 = sequence.
+# The id map is from the official KICKR BIKE 1/2 shifter layout as decoded by
+# the OpenBikeControl project.
+KICKR_BUTTONS: dict[str, tuple[str, str]] = {
+    "0200": ("left_up", "Left up"),
+    "0400": ("left_down", "Left down"),
+    "2000": ("left_steer", "Left steer"),
+    "0001": ("right_up", "Right up"),
+    "8000": ("right_down", "Right down"),
+    "0008": ("right_steer", "Right steer"),
+    "1000": ("left_shift_up", "Left shift up"),
+    "0800": ("left_shift_down", "Left shift down"),
+    "0004": ("right_shift_up", "Right shift up"),
+    "0002": ("right_shift_down", "Right shift down"),
+    "0100": ("left_brake", "Left brake"),
+    "4000": ("right_brake", "Right brake"),
+}
+
+
+def parse_kickr_button_frame(data: bytes) -> dict[str, Any] | None:
+    """Decode a KICKR BIKE shifter button notification.
+
+    Returns None for the periodic long configuration frames (which start with
+    ``FF 0F`` and are 15 bytes long) and for unknown button ids.
+    """
+    if len(data) != 3:
+        return None
+    prefix = data[0:2].hex().upper()
+    button = KICKR_BUTTONS.get(prefix)
+    if button is None:
+        return None
+    key, name = button
+    return {
+        "prefix": prefix,
+        "key": key,
+        "name": name,
+        "pressed": bool(data[2] & 0x80),
+        "sequence": data[2] & 0x7F,
+    }
+
+
+# ---------------------------------------------------------------------------
 # HEADWIND
 # ---------------------------------------------------------------------------
 
 HEADWIND_MODE_OFF = 1
-HEADWIND_MODE_AUTO = 2
+HEADWIND_MODE_HEART_RATE = 2
+HEADWIND_MODE_SPEED = 3
 HEADWIND_MODE_MANUAL = 4
+HEADWIND_MODE_NAMES = {
+    HEADWIND_MODE_OFF: "off",
+    HEADWIND_MODE_HEART_RATE: "heart_rate",
+    HEADWIND_MODE_SPEED: "speed",
+    HEADWIND_MODE_MANUAL: "manual",
+}
 
 
 def parse_headwind_status(data: bytes) -> dict[str, Any]:
     """Decode a HEADWIND status notification.
 
     Confirmed formats:
-      fd 01 SS MM   current state, MM=01 off, 02/03 auto/standby, 04 manual
+      fd 01 SS MM   current state, MM=01 off, 02 heart rate, 03 speed, 04 manual
       fe 02 01 SS   speed changed (SS)
       fe 04 01 01   turned off
     """
@@ -363,8 +415,12 @@ def parse_headwind_status(data: bytes) -> dict[str, Any]:
     return {}
 
 
+def headwind_set_mode(mode: int) -> bytes:
+    return bytes((0x04, max(HEADWIND_MODE_OFF, min(HEADWIND_MODE_MANUAL, int(mode))), 0x00, 0x00))
+
+
 def headwind_manual_mode() -> bytes:
-    return bytes((0x04, 0x04, 0x00, 0x00))
+    return headwind_set_mode(HEADWIND_MODE_MANUAL)
 
 
 def headwind_set_speed(speed_pct: int) -> bytes:

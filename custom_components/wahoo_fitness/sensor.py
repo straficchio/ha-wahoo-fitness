@@ -26,6 +26,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import MODEL_HEADWIND, MODEL_KICKR_BIKE
 from .coordinator import KickrBikeCoordinator, WahooFitnessCoordinator
 from .entity import WahooFitnessEntity
+from .protocol import HEADWIND_MODE_NAMES
 
 PARALLEL_UPDATES = 0
 
@@ -98,6 +99,8 @@ HEADWIND_SENSORS: tuple[SensorEntityDescription, ...] = (
     SensorEntityDescription(
         key="mode",
         translation_key="mode",
+        device_class=SensorDeviceClass.ENUM,
+        options=list(HEADWIND_MODE_NAMES.values()),
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:fan",
     ),
@@ -209,14 +212,6 @@ class KickrDistanceSensor(WahooFitnessEntity, RestoreSensor):
         return super().available or self._distance > 0
 
 
-HEADWIND_MODE_NAMES = {
-    1: "off",
-    2: "auto",
-    3: "auto",
-    4: "manual",
-}
-
-
 class HeadwindModeSensor(WahooFitnessEntity, SensorEntity):
     """HEADWIND operating mode."""
 
@@ -237,4 +232,4 @@ class HeadwindModeSensor(WahooFitnessEntity, SensorEntity):
         mode = self.coordinator.data.get("mode")
         if mode is None:
             return None
-        return HEADWIND_MODE_NAMES.get(int(mode), f"unknown ({mode})")
+        return HEADWIND_MODE_NAMES.get(int(mode))

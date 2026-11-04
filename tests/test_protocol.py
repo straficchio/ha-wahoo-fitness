@@ -11,6 +11,7 @@ from protocol import (
     ftms_target_power,
     headwind_manual_mode,
     headwind_off,
+    headwind_set_mode,
     headwind_set_speed,
     parse_cps_measurement,
     parse_ftms_control_response,
@@ -18,6 +19,7 @@ from protocol import (
     parse_gear_state,
     parse_headwind_status,
     parse_indoor_bike_data,
+    parse_kickr_button_frame,
     parse_training_status,
 )
 
@@ -154,3 +156,41 @@ def test_ftms_status() -> None:
 def test_training_status() -> None:
     assert parse_training_status(bytes.fromhex("cc a0"))["training_status"] == "unknown_160"
     assert parse_training_status(bytes.fromhex("00 01"))["training_status"] == "idle"
+
+
+def test_kickr_button_press_and_release() -> None:
+    pressed = parse_kickr_button_frame(bytes.fromhex("02 00 80"))
+    assert pressed is not None
+    assert pressed["key"] == "left_up"
+    assert pressed["pressed"] is True
+    assert pressed["sequence"] == 0
+
+    released = parse_kickr_button_frame(bytes.fromhex("02 00 05"))
+    assert released is not None
+    assert released["key"] == "left_up"
+    assert released["pressed"] is False
+    assert released["sequence"] == 5
+
+
+def test_kickr_button_right_up_with_sequence() -> None:
+    parsed = parse_kickr_button_frame(bytes.fromhex("00 01 e6"))
+    assert parsed is not None
+    assert parsed["key"] == "right_up"
+    assert parsed["pressed"] is True
+    assert parsed["sequence"] == 0x66
+
+
+def test_kickr_button_ignores_long_and_unknown_frames() -> None:
+    # The periodic shifter/config frame starts with ff 0f and is 15 bytes.
+    assert (
+        parse_kickr_button_frame(bytes.fromhex("ff 0f 0a 02 0a 01 13 1c 36 00 00 4c 6a 31")) is None
+    )
+    assert parse_kickr_button_frame(bytes.fromhex("99 99 80")) is None
+
+
+def test_headwind_set_mode() -> None:
+    assert headwind_set_mode(1) == bytes.fromhex("04 01 00 00")
+    assert headwind_set_mode(2) == bytes.fromhex("04 02 00 00")
+    assert headwind_set_mode(3) == bytes.fromhex("04 03 00 00")
+    assert headwind_set_mode(4) == bytes.fromhex("04 04 00 00")
+    assert headwind_set_mode(99) == bytes.fromhex("04 04 00 00")

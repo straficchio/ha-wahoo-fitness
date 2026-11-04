@@ -54,6 +54,7 @@ from .protocol import (
     FTMS_TRAINING_STATUS_UUID,
     HARDWARE_REVISION_UUID,
     HEADWIND_CONTROL_UUID,
+    HEADWIND_MODE_OFF,
     KICKR_GEAR_STATE_UUID,
     KICKR_SHIFTER_BUTTON_UUID,
     MANUFACTURER_NAME_UUID,
@@ -67,6 +68,7 @@ from .protocol import (
     ftms_target_power,
     headwind_manual_mode,
     headwind_off,
+    headwind_set_mode,
     headwind_set_speed,
     parse_cps_measurement,
     parse_ftms_control_response,
@@ -74,6 +76,7 @@ from .protocol import (
     parse_gear_state,
     parse_headwind_status,
     parse_indoor_bike_data,
+    parse_kickr_button_frame,
     parse_training_status,
 )
 
@@ -495,9 +498,16 @@ class KickrBikeCoordinator(WahooFitnessCoordinator):
                 self.data["target_grade_pct"] = status["simulation_grade_pct"]
             elif "stopped_or_paused" in status:
                 self.data["mode"] = MODE_OFF
+        elif uuid == KICKR_SHIFTER_BUTTON_UUID:
+            event = parse_kickr_button_frame(payload)
+            if event is not None:
+                self.data[f"button_{event['key']}"] = event["pressed"]
+                self.data["last_button"] = event["key"]
+                self.data["last_button_pressed"] = event["pressed"]
+                self.data["last_button_sequence"] = event["sequence"]
+                self._async_push(force=True)
         elif uuid == FTMS_CONTROL_POINT_UUID:
             self._control_queue.put_nowait(payload)
-        # KICKR_SHIFTER_BUTTON_UUID carries shifter button events; currently unused.
 
     async def _async_ensure_started(self) -> None:
         if self._started:
@@ -588,11 +598,22 @@ class HeadwindCoordinator(WahooFitnessCoordinator):
         self.data["mode"] = 4
         self._async_push(force=True)
 
+    async def async_set_mode(self, mode: int) -> None:
+        """Set the fan mode (off, heart rate, speed, or manual)."""
+        await self._async_write(headwind_set_mode(mode))
+        self.data["mode"] = mode
+        if mode == HEADWIND_MODE_OFF:
+            self.data["speed_pct"] = 0
+            self.data["is_on"] = False
+        else:
+            self.data["is_on"] = bool(self.data.get("speed_pct"))
+        self._async_push(force=True)
+
     async def async_turn_off(self) -> None:
         await self._async_write(headwind_off())
         self.data["speed_pct"] = 0
         self.data["is_on"] = False
-        self.data["mode"] = 1
+        self.data["mode"] = HEADWIND_MODE_OFF
         self._async_push(force=True)
 
     async def async_turn_on(self, percentage: int | None = None) -> None:

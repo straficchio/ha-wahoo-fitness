@@ -51,7 +51,13 @@
         "name": "Training status"
       },
       "mode": {
-        "name": "Mode"
+        "name": "Mode",
+        "state": {
+          "off": "Off",
+          "heart_rate": "Heart rate",
+          "speed": "Speed",
+          "manual": "Manual"
+        }
       }
     },
     "binary_sensor": {
@@ -60,6 +66,42 @@
       },
       "pedaling": {
         "name": "Pedaling"
+      },
+      "button_left_up": {
+        "name": "Left up"
+      },
+      "button_left_down": {
+        "name": "Left down"
+      },
+      "button_left_steer": {
+        "name": "Left steer"
+      },
+      "button_right_up": {
+        "name": "Right up"
+      },
+      "button_right_down": {
+        "name": "Right down"
+      },
+      "button_right_steer": {
+        "name": "Right steer"
+      },
+      "button_left_shift_up": {
+        "name": "Left shift up"
+      },
+      "button_left_shift_down": {
+        "name": "Left shift down"
+      },
+      "button_right_shift_up": {
+        "name": "Right shift up"
+      },
+      "button_right_shift_down": {
+        "name": "Right shift down"
+      },
+      "button_left_brake": {
+        "name": "Left brake"
+      },
+      "button_right_brake": {
+        "name": "Right brake"
       }
     },
     "number": {
@@ -68,6 +110,9 @@
       },
       "grade": {
         "name": "Grade"
+      },
+      "manual_speed": {
+        "name": "Manual speed"
       }
     },
     "select": {
@@ -77,6 +122,15 @@
           "off": "Off",
           "erg": "ERG",
           "simulation": "Simulation"
+        }
+      },
+      "fan_mode": {
+        "name": "Fan mode",
+        "state": {
+          "off": "Off",
+          "heart_rate": "Heart rate",
+          "speed": "Speed",
+          "manual": "Manual"
         }
       }
     }

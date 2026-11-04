@@ -1,4 +1,4 @@
-"""Number entities for controlling a Wahoo KICKR BIKE."""
+"""Number entities for Wahoo Fitness devices."""
 
 from __future__ import annotations
 
@@ -15,8 +15,14 @@ from homeassistant.const import PERCENTAGE, UnitOfPower
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import MAX_GRADE, MAX_TARGET_POWER, MIN_GRADE, MODEL_KICKR_BIKE
-from .coordinator import KickrBikeCoordinator
+from .const import (
+    MAX_GRADE,
+    MAX_TARGET_POWER,
+    MIN_GRADE,
+    MODEL_HEADWIND,
+    MODEL_KICKR_BIKE,
+)
+from .coordinator import HeadwindCoordinator, KickrBikeCoordinator
 from .entity import WahooFitnessEntity
 
 PARALLEL_UPDATES = 1
@@ -44,21 +50,34 @@ GRADE_DESCRIPTION = NumberEntityDescription(
     icon="mdi:slope-uphill",
 )
 
+HEADWIND_SPEED_DESCRIPTION = NumberEntityDescription(
+    key="manual_speed",
+    translation_key="manual_speed",
+    native_min_value=0,
+    native_max_value=100,
+    native_step=1,
+    native_unit_of_measurement=PERCENTAGE,
+    mode=NumberMode.SLIDER,
+    icon="mdi:fan",
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    if entry.data["model"] != MODEL_KICKR_BIKE:
-        return
-    coordinator: KickrBikeCoordinator = entry.runtime_data
-    async_add_entities(
-        [
-            KickrTargetPowerNumber(coordinator, TARGET_POWER_DESCRIPTION),
-            KickrGradeNumber(coordinator, GRADE_DESCRIPTION),
-        ]
-    )
+    if entry.data["model"] == MODEL_KICKR_BIKE:
+        coordinator: KickrBikeCoordinator = entry.runtime_data
+        async_add_entities(
+            [
+                KickrTargetPowerNumber(coordinator, TARGET_POWER_DESCRIPTION),
+                KickrGradeNumber(coordinator, GRADE_DESCRIPTION),
+            ]
+        )
+    elif entry.data["model"] == MODEL_HEADWIND:
+        headwind: HeadwindCoordinator = entry.runtime_data
+        async_add_entities([HeadwindManualSpeedNumber(headwind, HEADWIND_SPEED_DESCRIPTION)])
 
 
 class KickrNumberBase(WahooFitnessEntity, NumberEntity):
@@ -107,3 +126,33 @@ class KickrGradeNumber(KickrNumberBase):
     @override
     async def async_set_native_value(self, value: float) -> None:
         await self.coordinator.async_set_grade(value)
+
+
+class HeadwindManualSpeedNumber(WahooFitnessEntity, NumberEntity):
+    """Manual fan speed for the HEADWIND."""
+
+    entity_description: NumberEntityDescription
+
+    def __init__(
+        self,
+        coordinator: HeadwindCoordinator,
+        description: NumberEntityDescription,
+    ) -> None:
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.entry.unique_id}_{description.key}"
+
+    @property
+    @override
+    def native_value(self) -> float | None:
+        speed = self.coordinator.data.get("speed_pct")
+        return None if speed is None else float(speed)
+
+    @override
+    async def async_set_native_value(self, value: float) -> None:
+        await self.coordinator.async_set_percentage(int(value))
+
+    @property
+    @override
+    def available(self) -> bool:
+        return self.coordinator.connected

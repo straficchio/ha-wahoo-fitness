@@ -26,6 +26,7 @@ from custom_components.wahoo_fitness.protocol import (
     HARDWARE_REVISION_UUID,
     HEADWIND_CONTROL_UUID,
     KICKR_GEAR_STATE_UUID,
+    KICKR_SHIFTER_BUTTON_UUID,
     MANUFACTURER_NAME_UUID,
     MODEL_NUMBER_UUID,
     SERIAL_NUMBER_UUID,
@@ -165,6 +166,19 @@ async def test_kickr_bike_entities_and_controls(hass) -> None:
     assert hass.states.get("binary_sensor.kickr_bike_abcd_connected").state == "on"
     assert hass.states.get("binary_sensor.kickr_bike_abcd_pedaling").state == "on"
 
+    client.notify(KICKR_SHIFTER_BUTTON_UUID, bytes.fromhex("02 00 80"))
+    await hass.async_block_till_done()
+    left_up = hass.states.get("binary_sensor.kickr_bike_abcd_left_up")
+    assert left_up.state == "on"
+    assert left_up.attributes["button_id"] == "0200"
+    client.notify(KICKR_SHIFTER_BUTTON_UUID, bytes.fromhex("02 00 01"))
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.kickr_bike_abcd_left_up").state == "off"
+
+    client.notify(KICKR_SHIFTER_BUTTON_UUID, bytes.fromhex("00 01 e6"))
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.kickr_bike_abcd_right_up").state == "on"
+
     await hass.services.async_call(
         "number",
         "set_value",
@@ -228,6 +242,8 @@ async def test_headwind_fan_control(hass) -> None:
     assert hass.states.get("fan.headwind_1234").state == "on"
     assert hass.states.get("fan.headwind_1234").attributes["percentage"] == 25
     assert hass.states.get("sensor.headwind_1234_mode").state == "manual"
+    assert hass.states.get("select.headwind_1234_fan_mode").state == "Manual"
+    assert hass.states.get("number.headwind_1234_manual_speed").state == "25.0"
 
     await hass.services.async_call(
         "fan",
@@ -240,13 +256,44 @@ async def test_headwind_fan_control(hass) -> None:
     assert hass.states.get("fan.headwind_1234").attributes["percentage"] == 60
 
     await hass.services.async_call(
-        "fan",
-        "turn_off",
-        {"entity_id": "fan.headwind_1234"},
+        "select",
+        "select_option",
+        {"entity_id": "select.headwind_1234_fan_mode", "option": "Heart rate"},
+        blocking=True,
+    )
+    assert (HEADWIND_CONTROL_UUID, bytes.fromhex("04 02 00 00"), False) in client.writes
+    assert hass.states.get("select.headwind_1234_fan_mode").state == "Heart rate"
+    assert hass.states.get("sensor.headwind_1234_mode").state == "heart_rate"
+
+    await hass.services.async_call(
+        "number",
+        "set_value",
+        {"entity_id": "number.headwind_1234_manual_speed", "value": 45},
+        blocking=True,
+    )
+    assert (HEADWIND_CONTROL_UUID, bytes.fromhex("04 04 00 00"), False) in client.writes
+    assert (HEADWIND_CONTROL_UUID, bytes.fromhex("02 2d 00 00"), False) in client.writes
+    assert hass.states.get("number.headwind_1234_manual_speed").state == "45.0"
+    assert hass.states.get("select.headwind_1234_fan_mode").state == "Manual"
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": "select.headwind_1234_fan_mode", "option": "Speed"},
+        blocking=True,
+    )
+    assert (HEADWIND_CONTROL_UUID, bytes.fromhex("04 03 00 00"), False) in client.writes
+    assert hass.states.get("sensor.headwind_1234_mode").state == "speed"
+
+    await hass.services.async_call(
+        "select",
+        "select_option",
+        {"entity_id": "select.headwind_1234_fan_mode", "option": "Off"},
         blocking=True,
     )
     assert (HEADWIND_CONTROL_UUID, bytes.fromhex("04 01 00 00"), False) in client.writes
     assert hass.states.get("fan.headwind_1234").state == "off"
+    assert hass.states.get("select.headwind_1234_fan_mode").state == "Off"
 
     assert await hass.config_entries.async_unload(entry.entry_id)
     await hass.async_block_till_done()

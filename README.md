@@ -18,6 +18,8 @@ Sensors:
 - Session distance (km, integrated from speed and restored after restarts)
 - Front / rear gear (1-based) and gear counts
 - Training status
+- All cockpit buttons as binary sensors: left/right up, down, steer, shift up/down,
+  left/right brake
 - Connected and pedaling binary sensors
 
 Controls:
@@ -40,12 +42,14 @@ selects Simulation. Selecting Off stops the workout.
 ### KICKR HEADWIND
 
 - Fan entity with on/off and 0–100 % speed
-- Mode sensor (`off`, `auto`, `manual`)
+- Fan mode select: **Off**, **Heart rate**, **Speed**, **Manual**
+- Manual speed number (1–100 %), which switches the fan to Manual when changed
+- Mode sensor (`off`, `heart_rate`, `speed`, `manual`)
 - Connected binary sensor
 
-Setting a speed puts the fan in manual mode. The fan's automatic heart-rate /
-power mode can still be configured in the Wahoo app; the mode sensor will report
-`auto` while it is active.
+The Headwind's heart-rate and speed modes use sensors paired to the fan in the
+Wahoo app. If no sensor is paired, the fan will stay at 0 % in those modes.
+Selecting Manual and setting a speed always works.
 
 ## Requirements
 
@@ -92,12 +96,17 @@ For a bike named `KICKR BIKE ABCD`:
 | `number.kickr_bike_abcd_target_power` | 180 W |
 | `number.kickr_bike_abcd_grade` | 3.5 % |
 | `select.kickr_bike_abcd_control_mode` | ERG / Simulation / Off |
+| `binary_sensor.kickr_bike_abcd_left_up` | on while pressed |
+| `binary_sensor.kickr_bike_abcd_left_shift_down` | off |
+| `binary_sensor.kickr_bike_abcd_right_brake` | off |
 
 For a fan named `HEADWIND 1234`:
 
 | Entity | Example |
 | --- | --- |
 | `fan.headwind_1234` | on, 45 % |
+| `select.headwind_1234_fan_mode` | Manual |
+| `number.headwind_1234_manual_speed` | 45 % |
 | `sensor.headwind_1234_mode` | manual |
 | `binary_sensor.headwind_1234_connected` | on |
 
@@ -110,6 +119,11 @@ For a fan named `HEADWIND 1234`:
   and wait up to 30 seconds; the integration retries automatically.
 - **Entity names:** the device name comes from the BLE advertisement. Renaming a
   device in the Wahoo app changes its name; update or re-add the config entry.
+- **Button sensors:** the 12 button sensors use the button IDs from the
+  official KICKR BIKE 1/2 shifter layout. Press a button and see which sensor
+  changes, then rename it in Home Assistant if your bike uses a different
+  layout. The head-unit button is handled locally by the bike and is not on the
+  Bluetooth button characteristic.
 - **Diagnostics:** download diagnostics from the integration page to see the
   connection state, firmware, serial number and last decoded data.
 
